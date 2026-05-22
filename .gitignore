@@ -1,0 +1,3 @@
+data/ipl_json/
+__pycache__/
+*.pyc
