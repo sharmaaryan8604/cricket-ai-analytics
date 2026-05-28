@@ -21,6 +21,10 @@ def prepare_match_options(ball_df):
         match_options["date"],
         errors="coerce",
     ).dt.strftime("%d %b %Y")
+    match_options["season"] = pd.to_datetime(
+        match_options["date"],
+        errors="coerce",
+    ).dt.year
 
     match_options["formatted_date"] = (
         match_options["formatted_date"]

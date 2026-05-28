@@ -181,3 +181,223 @@ def create_live_replay_figure(
     )
 
     return fig
+
+
+def create_leaderboard_bar_figure(
+    leaderboard_df,
+    player_column,
+    value_column,
+    title,
+    color,
+    suffix="",
+):
+
+    chart_df = leaderboard_df.iloc[::-1]
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=chart_df[value_column],
+            y=chart_df[player_column],
+            orientation="h",
+            marker=dict(
+                color=color,
+                line=dict(
+                    color="#f8fafc",
+                    width=0.8,
+                ),
+            ),
+            text=[
+                f"{value}{suffix}"
+                for value in chart_df[value_column]
+            ],
+            textposition="outside",
+            hovertemplate="%{y}: %{x}" + suffix + "<extra></extra>",
+        )
+    )
+
+    fig.update_layout(
+        title=title,
+        paper_bgcolor="rgba(0, 0, 0, 0)",
+        plot_bgcolor="rgba(12, 18, 28, 0.92)",
+        font=dict(color="#f8fafc"),
+        xaxis=dict(
+            gridcolor="rgba(255, 255, 255, 0.08)",
+            zeroline=False,
+            title="",
+        ),
+        yaxis=dict(
+            gridcolor="rgba(255, 255, 255, 0.04)",
+            title="",
+        ),
+        margin=dict(l=10, r=10, t=55, b=10),
+        height=420,
+    )
+
+    return fig
+
+
+def create_caps_trend_figure(caps_df):
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=caps_df["season"],
+            y=caps_df["orange_runs"],
+            mode="lines+markers",
+            name="Orange Cap Runs",
+            line=dict(
+                color="#f59e0b",
+                width=3,
+            ),
+            marker=dict(size=8),
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=caps_df["season"],
+            y=caps_df["purple_wickets"],
+            mode="lines+markers",
+            name="Purple Cap Wickets",
+            line=dict(
+                color="#8b5cf6",
+                width=3,
+            ),
+            marker=dict(size=8),
+            yaxis="y2",
+        )
+    )
+
+    fig.update_layout(
+        title="Season Leaders Trend",
+        paper_bgcolor="rgba(0, 0, 0, 0)",
+        plot_bgcolor="rgba(12, 18, 28, 0.92)",
+        font=dict(color="#f8fafc"),
+        xaxis=dict(
+            gridcolor="rgba(255, 255, 255, 0.08)",
+            zeroline=False,
+            title="Season",
+        ),
+        yaxis=dict(
+            gridcolor="rgba(255, 255, 255, 0.08)",
+            zeroline=False,
+            title="Runs",
+        ),
+        yaxis2=dict(
+            overlaying="y",
+            side="right",
+            title="Wickets",
+            showgrid=False,
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+        ),
+        height=440,
+        margin=dict(l=10, r=10, t=55, b=10),
+    )
+
+    return fig
+
+
+def create_live_match_figure(
+    history_df,
+    batting_color,
+    bowling_color,
+):
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=history_df["over_ball"],
+            y=history_df["win_probability"],
+            mode="lines+markers",
+            name="Win Probability",
+            line=dict(
+                color=batting_color,
+                width=4,
+            ),
+            marker=dict(size=8, color=batting_color),
+            fill="tozeroy",
+            fillcolor=hex_to_rgba(
+                batting_color,
+                0.18,
+            ),
+            hovertemplate=(
+                "Over %{x}<br>"
+                "Win probability %{y:.1f}%<br>"
+                "Score %{customdata[0]}<extra></extra>"
+            ),
+            customdata=history_df[["scoreline"]],
+        )
+    )
+
+    event_df = history_df[
+        history_df["event_type"].isin(["boundary", "wicket"])
+    ].copy()
+
+    if not event_df.empty:
+
+        fig.add_trace(
+            go.Scatter(
+                x=event_df["over_ball"],
+                y=event_df["win_probability"],
+                mode="markers+text",
+                text=event_df["event_label"],
+                textposition="top center",
+                name="Key Moments",
+                marker=dict(
+                    size=12,
+                    color=[
+                        bowling_color
+                        if event_type == "wicket"
+                        else batting_color
+                        for event_type in event_df["event_type"]
+                    ],
+                    line=dict(
+                        color="#ffffff",
+                        width=1,
+                    ),
+                ),
+                textfont=dict(color="#f8fafc"),
+                hovertemplate="%{text}<extra></extra>",
+            )
+        )
+
+    fig.update_layout(
+        title="Live Chase Probability Curve",
+        paper_bgcolor="rgba(0, 0, 0, 0)",
+        plot_bgcolor="rgba(12, 18, 28, 0.92)",
+        font=dict(color="#f8fafc"),
+        xaxis=dict(
+            gridcolor="rgba(255, 255, 255, 0.08)",
+            zeroline=False,
+            title="Overs",
+        ),
+        yaxis=dict(
+            range=[0, 100],
+            gridcolor="rgba(255, 255, 255, 0.08)",
+            zerolinecolor=hex_to_rgba(
+                bowling_color,
+                0.45,
+            ),
+            title="Win Probability %",
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+        ),
+        margin=dict(l=10, r=10, t=55, b=10),
+        height=500,
+    )
+
+    return fig

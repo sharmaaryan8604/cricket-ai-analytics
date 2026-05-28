@@ -7,7 +7,6 @@ from utils.charts import (
 from utils.dashboard import (
     get_batting_leaders,
     get_bowling_leaders,
-    get_match_summary_df,
     get_season_caps,
     get_season_overview,
     latest_season,
@@ -20,95 +19,97 @@ from utils.ui import (
 
 
 st.set_page_config(
-    page_title="IPL Analytics Dashboard",
+    page_title="Season Leaders",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 apply_app_styles()
 
-season_overview_df = get_season_overview()
-match_summary_df = get_match_summary_df()
 batting_leaders_df = get_batting_leaders()
 bowling_leaders_df = get_bowling_leaders()
 season_caps_df = get_season_caps()
+season_overview_df = get_season_overview()
 
-current_season = latest_season()
-current_caps = season_caps_df[
-    season_caps_df["season"] == current_season
+available_seasons = sorted(
+    season_caps_df["season"].dropna().astype(int).unique().tolist(),
+    reverse=True,
+)
+default_season = latest_season()
+
+render_page_header(
+    title="Season-Wise Run and Wicket Leaders",
+    subtitle=(
+        "Explore every season like an IPL dashboard: top run scorer, top wicket taker, "
+        "and the full leaderboard behind each cap race."
+    ),
+    kicker="Orange Cap + Purple Cap",
+)
+
+selected_season = st.selectbox(
+    "Choose a season",
+    available_seasons,
+    index=available_seasons.index(default_season),
+)
+
+season_caps_row = season_caps_df[
+    season_caps_df["season"] == selected_season
+].iloc[0]
+
+season_summary_row = season_overview_df[
+    season_overview_df["season"] == selected_season
 ].iloc[0]
 
 top_batters_df = (
     batting_leaders_df[
-        batting_leaders_df["season"] == current_season
+        batting_leaders_df["season"] == selected_season
     ]
-    .head(5)
+    .head(10)
     .copy()
 )
-
 top_bowlers_df = (
     bowling_leaders_df[
-        bowling_leaders_df["season"] == current_season
+        bowling_leaders_df["season"] == selected_season
     ]
-    .head(5)
+    .head(10)
     .copy()
 )
 
-render_page_header(
-    title="IPL Analytics Command Center",
-    subtitle=(
-        "A multi-page cricket dashboard with live chase prediction, "
-        "season-wise Orange Cap and Purple Cap tracking, and historical replay analysis."
-    ),
-    kicker="Multi-Page Streamlit App",
-)
+summary_columns = st.columns(4)
 
-st.sidebar.markdown("### Navigate")
-st.sidebar.info(
-    "Use the page list to open `Live Predictor`, `Season Leaders`, and `Match Replay`."
-)
-
-metric_columns = st.columns(4)
-
-with metric_columns[0]:
+with summary_columns[0]:
 
     render_metric_card(
-        "Seasons Covered",
-        str(int(season_overview_df["season"].nunique())),
-        f"{int(season_overview_df['season'].min())} to {current_season}",
+        "Top Run Scorer",
+        season_caps_row["orange_cap"],
+        f"{int(season_caps_row['orange_runs'])} runs for {season_caps_row['orange_team']}",
     )
 
-with metric_columns[1]:
+with summary_columns[1]:
 
     render_metric_card(
-        "Matches Loaded",
-        f"{int(match_summary_df['match_id'].nunique())}",
-        "Historical IPL-style ball-by-ball matches",
+        "Top Wicket Taker",
+        season_caps_row["purple_cap"],
+        f"{int(season_caps_row['purple_wickets'])} wickets for {season_caps_row['purple_team']}",
     )
 
-with metric_columns[2]:
+with summary_columns[2]:
 
     render_metric_card(
-        f"{current_season} Orange Cap",
-        current_caps["orange_cap"],
-        f"{int(current_caps['orange_runs'])} runs for {current_caps['orange_team']}",
+        "Season Matches",
+        int(season_summary_row["matches"]),
+        f"{int(season_summary_row['venues'])} venues in use",
     )
 
-with metric_columns[3]:
+with summary_columns[3]:
 
     render_metric_card(
-        f"{current_season} Purple Cap",
-        current_caps["purple_cap"],
-        f"{int(current_caps['purple_wickets'])} wickets for {current_caps['purple_team']}",
+        "Runs + Wickets",
+        f"{int(season_summary_row['total_runs'])}",
+        f"{int(season_summary_row['total_wickets'])} wickets recorded",
     )
 
-st.markdown("### Season Trends")
-st.markdown(
-    '<div class="section-copy">Track how the benchmark for the top run scorer and wicket taker changes from season to season.</div>',
-    unsafe_allow_html=True,
-)
-
-trend_column, caps_table_column = st.columns([1.45, 1])
+trend_column, latest_caps_column = st.columns([1.45, 1])
 
 with trend_column:
 
@@ -117,20 +118,18 @@ with trend_column:
         use_container_width=True,
     )
 
-with caps_table_column:
+with latest_caps_column:
 
-    caps_table_df = season_caps_df.rename(columns={
+    season_caps_table_df = season_caps_df.rename(columns={
         "season": "Season",
         "orange_cap": "Top Run Scorer",
-        "orange_team": "Batting Team",
         "orange_runs": "Runs",
         "purple_cap": "Top Wicket Taker",
-        "purple_team": "Bowling Team",
         "purple_wickets": "Wickets",
     })
 
     st.dataframe(
-        caps_table_df[
+        season_caps_table_df[
             [
                 "Season",
                 "Top Run Scorer",
@@ -138,16 +137,10 @@ with caps_table_column:
                 "Top Wicket Taker",
                 "Wickets",
             ]
-        ],
+        ].sort_values("Season", ascending=False),
         use_container_width=True,
         hide_index=True,
     )
-
-st.markdown("### Latest Season Leaderboards")
-st.markdown(
-    f'<div class="section-copy">The current data snapshot shows the best performers from the {current_season} season.</div>',
-    unsafe_allow_html=True,
-)
 
 leaderboard_columns = st.columns(2)
 
@@ -158,7 +151,7 @@ with leaderboard_columns[0]:
             leaderboard_df=top_batters_df,
             player_column="player",
             value_column="runs",
-            title=f"{current_season} Top Run Scorers",
+            title=f"{selected_season} Orange Cap Race",
             color="#f59e0b",
         ),
         use_container_width=True,
@@ -172,6 +165,8 @@ with leaderboard_columns[0]:
             "runs": "Runs",
             "balls": "Balls",
             "strike_rate": "Strike Rate",
+            "fours": "4s",
+            "sixes": "6s",
             "matches": "Matches",
         })[
             [
@@ -181,6 +176,8 @@ with leaderboard_columns[0]:
                 "Runs",
                 "Balls",
                 "Strike Rate",
+                "4s",
+                "6s",
                 "Matches",
             ]
         ],
@@ -195,7 +192,7 @@ with leaderboard_columns[1]:
             leaderboard_df=top_bowlers_df,
             player_column="player",
             value_column="wickets",
-            title=f"{current_season} Top Wicket Takers",
+            title=f"{selected_season} Purple Cap Race",
             color="#8b5cf6",
         ),
         use_container_width=True,
@@ -209,6 +206,7 @@ with leaderboard_columns[1]:
             "wickets": "Wickets",
             "overs": "Overs",
             "economy": "Economy",
+            "strike_rate": "Strike Rate",
             "matches": "Matches",
         })[
             [
@@ -218,40 +216,10 @@ with leaderboard_columns[1]:
                 "Wickets",
                 "Overs",
                 "Economy",
+                "Strike Rate",
                 "Matches",
             ]
         ],
         use_container_width=True,
         hide_index=True,
-    )
-
-st.markdown("### Season Snapshot")
-
-snapshot_columns = st.columns(3)
-season_row = season_overview_df[
-    season_overview_df["season"] == current_season
-].iloc[0]
-
-with snapshot_columns[0]:
-
-    render_metric_card(
-        "Matches This Season",
-        int(season_row["matches"]),
-        f"{int(season_row['venues'])} venues across {int(season_row['cities'])} cities",
-    )
-
-with snapshot_columns[1]:
-
-    render_metric_card(
-        "Runs Scored",
-        f"{int(season_row['total_runs'])}",
-        f"{int(season_row['teams'])} batting lineups contributed",
-    )
-
-with snapshot_columns[2]:
-
-    render_metric_card(
-        "Wickets Fallen",
-        f"{int(season_row['total_wickets'])}",
-        "Dismissals recorded across the season feed",
     )
